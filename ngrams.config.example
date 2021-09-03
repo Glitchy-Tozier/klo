@@ -1,0 +1,10 @@
+100000000    pregenerated     evolve-keyboard-layout/1gramme.txt;evolve-keyboard-layout/2gramme.txt;evolve-keyboard-layout/3gramme.txt
+50000000     pregenerated     evolve-keyboard-layout/1-gramme.wiki.txt;evolve-keyboard-layout/2-gramme.wiki.txt;evolve-keyboard-layout/3-gramme.wiki.txt
+20000000     pregenerated     evolve-keyboard-layout/1-gramme.logger.txt;evolve-keyboard-layout/2-gramme.logger.txt;evolve-keyboard-layout/3-gramme.logger.txt
+30000000             text     evolve-keyboard-layout/Korpora/py-korpus.txt
+10000000             text     evolve-keyboard-layout/Korpora/c-korpus.txt
+10000000             text     evolve-keyboard-layout/Korpora/java-korpus.txt
+20000000             text     evolve-keyboard-layout/Korpora/fiction.txt.utf8
+20000000             text     evolve-keyboard-layout/Korpora/nonfiction.txt.utf8
+30000000             text     evolve-keyboard-layout/Korpora/Sachtext.txt.utf8
+30000000             text     evolve-keyboard-layout/Korpora/Literatur.txt.utf8

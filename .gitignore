@@ -1,0 +1,5 @@
+/target
+/evolve-keyboard-layout
+.DS_Store
+.vscode/
+ngrams.config
