@@ -1,8 +1,13 @@
-use std::{fmt, fs::read_to_string};
+use std::{
+    collections::HashMap,
+    fmt::{self, Debug},
+    fs::read_to_string,
+};
 
-use log::debug;
+use log::{debug, warn};
 
 use crate::klo_options::KloOptions;
+use rand::{seq::SliceRandom, thread_rng};
 
 type Layer = String;
 type Key = Vec<Layer>;
@@ -15,6 +20,9 @@ pub trait LayoutT {
     fn get_base_layout(path: &Option<String>) -> Self;
     fn merge_layout_string(&mut self, layout: &str);
     fn debug_print(&self);
+    fn get_randomized_variant(&self, alphabet: String, switches: u128) -> Self;
+    fn set_new_key(&mut self, new_key: String, old_key: String);
+    fn get_key_pos(&mut self, needle: String) -> (usize, usize);
 }
 
 impl LayoutT for Layout {
@@ -54,7 +62,7 @@ impl LayoutT for Layout {
             let chars = line.chars();
 
             for (idy, char) in chars.enumerate() {
-                self.set_key(idx + 1, idy +1, 0, char.into());
+                self.set_key(idx + 1, idy + 1, 0, char.into());
             }
         }
     }
@@ -67,5 +75,55 @@ impl LayoutT for Layout {
             }
             debug!("{}", keys);
         }
+    }
+
+    fn get_randomized_variant(&self, alphabet: String, steps: u128) -> Self {
+        debug!("Creating a new randomized variant with {} steps.", steps);
+        let mut layout = self.clone();
+
+        let mut old_alphabet = vec![];
+        let mut new_alphabet = vec![];
+        alphabet.chars().for_each(|c| {
+            old_alphabet.push(c.to_string());
+            new_alphabet.push(c.to_string());
+        });
+        new_alphabet.shuffle(&mut thread_rng());
+
+        for (idx, new_char) in new_alphabet.iter().enumerate() {
+            let old_char = &old_alphabet[idx];
+            layout.set_new_key(old_char.clone(), new_char.clone());
+        }
+
+        debug!("{:?}", old_alphabet);
+        debug!("{:?}", new_alphabet);
+        self.debug_print();
+        layout.debug_print();
+
+        layout
+    }
+
+    fn set_new_key(&mut self, new_key: String, old_key: String) {
+        let (row, key) = self.get_key_pos(old_key);
+        self.set_key(row, key, 0, new_key);
+    }
+
+    fn get_key_pos(&mut self, needle: String) -> (usize, usize) {
+        let mut row_index = 0;
+        let mut key_index = 0;
+
+        for (inr, row) in self.iter().enumerate() {
+            for (ink, key) in row.iter().enumerate() {
+                let default_key = "not_set".to_string();
+                let key = key.first().unwrap_or(&default_key);
+                if key == &needle {
+                    row_index = inr;
+                    key_index = ink;
+                }
+            }
+        }
+
+        debug!("Found key {} in {} x {}", needle, row_index, key_index);
+
+        (row_index, key_index)
     }
 }
