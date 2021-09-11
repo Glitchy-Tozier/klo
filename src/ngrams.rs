@@ -122,13 +122,13 @@ impl NGrams {
         let normalized_bigrams: Vec<_> = ngrams
             .bigrams
             .iter()
-            .map(|(letter, number)| (letter.clone(), *number as f64 / total as f64))
+            .map(|(bigram, number)| (bigram.clone(), *number as f64 / total as f64))
             .collect();
 
         let normalized_trigrams: Vec<_> = ngrams
             .trigrams
             .iter()
-            .map(|(letter, number)| (letter.clone(), *number as f64 / total as f64))
+            .map(|(trigram, number)| (trigram.clone(), *number as f64 / total as f64))
             .collect();
 
         NormalizedNGrams {
