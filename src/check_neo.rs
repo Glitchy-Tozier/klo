@@ -9,7 +9,7 @@ pub fn evolve_a_layout(options: &KloOptions) {
 
     if options.limit_ngrams > 0 {
         ngram_data
-            .letters
+            .monograms
             .truncate(options.limit_ngrams.try_into().unwrap());
         ngram_data
             .bigrams

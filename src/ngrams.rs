@@ -10,25 +10,25 @@ use std::{fs, vec};
 
 /**
 NGrams contains ngrams from various sources in raw and weighted
-form and can export them to the simple (1gramme.txt, 2gramme.txt,
-3gramme.txt) form with a given number of total keystrokes.
+form and can export them to the simple (1grams.txt, 2grams.txt,
+3grams.txt) form with a given number of total keystrokes.
 */
 pub struct NGrams {
-    pub letters: Vec<(String, f64)>,
+    pub monograms: Vec<(String, f64)>,
     pub bigrams: Vec<(String, f64)>,
     pub trigrams: Vec<(String, f64)>,
 }
 
 struct RawNGrams {
     weight: f64,
-    letters: Vec<(String, f64)>,
+    monograms: Vec<(String, f64)>,
     bigrams: Vec<(String, f64)>,
     trigrams: Vec<(String, f64)>,
 }
 
 struct NormalizedNGrams {
     weight: f64,
-    letters: Vec<(String, f64)>,
+    monograms: Vec<(String, f64)>,
     bigrams: Vec<(String, f64)>,
     trigrams: Vec<(String, f64)>,
 }
@@ -67,13 +67,13 @@ impl NGrams {
     }
 
     fn collect_normalized_ngrams(normalized: Vec<NormalizedNGrams>) -> Self {
-        let mut letter_weight = HashMap::new();
+        let mut monogram_weight = HashMap::new();
         let mut bigram_weight = HashMap::new();
         let mut trigram_weight = HashMap::new();
 
         for ngram in normalized {
-            for (letter, num) in ngram.letters {
-                *letter_weight.entry(letter).or_insert(0.0) += num * ngram.weight;
+            for (monogram, num) in ngram.monograms {
+                *monogram_weight.entry(monogram).or_insert(0.0) += num * ngram.weight;
             }
 
             for (bigram, num) in ngram.bigrams {
@@ -85,9 +85,9 @@ impl NGrams {
             }
         }
 
-        let mut letters = vec![];
-        letter_weight.into_iter().for_each(|(letter, num)| {
-            letters.push((letter, num));
+        let mut monograms = vec![];
+        monogram_weight.into_iter().for_each(|(monogram, num)| {
+            monograms.push((monogram, num));
         });
 
         let mut bigrams = vec![];
@@ -101,22 +101,22 @@ impl NGrams {
         });
 
         NGrams {
-            letters,
+            monograms,
             bigrams,
             trigrams,
         }
     }
 
     fn normalize_ngrams(ngrams: &RawNGrams) -> NormalizedNGrams {
-        let sum_letters: f64 = ngrams.letters.iter().fold(0.0, Self::fold_ngrams);
+        let sum_monograms: f64 = ngrams.monograms.iter().fold(0.0, Self::fold_ngrams);
         let sum_bigrams: f64 = ngrams.bigrams.iter().fold(0.0, Self::fold_ngrams);
         let sum_trigrams: f64 = ngrams.trigrams.iter().fold(0.0, Self::fold_ngrams);
-        let total = sum_letters + sum_bigrams + sum_trigrams;
+        let total = sum_monograms + sum_bigrams + sum_trigrams;
 
-        let normalized_letters: Vec<_> = ngrams
-            .letters
+        let normalized_monograms: Vec<_> = ngrams
+            .monograms
             .iter()
-            .map(|(letter, number)| (letter.clone(), *number as f64 / total as f64))
+            .map(|(monogram, number)| (monogram.clone(), *number as f64 / total as f64))
             .collect();
 
         let normalized_bigrams: Vec<_> = ngrams
@@ -133,7 +133,7 @@ impl NGrams {
 
         NormalizedNGrams {
             weight: ngrams.weight,
-            letters: normalized_letters,
+            monograms: normalized_monograms,
             bigrams: normalized_bigrams,
             trigrams: normalized_trigrams,
         }
@@ -174,16 +174,16 @@ impl NGrams {
 
     fn parse_pregenerated_ngrams(
         weight: f64,
-        letters_path: &str,
+        monograms_path: &str,
         bigrams_path: &str,
         trigrams_path: &str,
     ) -> RawNGrams {
-        let letters = Self::read_pregenerated_file(letters_path.to_string());
+        let monograms = Self::read_pregenerated_file(monograms_path.to_string());
         let bigrams = Self::read_pregenerated_file(bigrams_path.to_string());
         let trigrams = Self::read_pregenerated_file(trigrams_path.to_string());
         RawNGrams {
             weight,
-            letters,
+            monograms,
             bigrams,
             trigrams,
         }
@@ -201,20 +201,20 @@ impl NGrams {
                 .filter(|part| part.to_string() != "".to_string())
                 .collect();
 
-            let mut letters = parts.last().unwrap().to_string();
+            let mut monograms = parts.last().unwrap().to_string();
 
             if line.chars().last().unwrap() == ' ' {
-                if letters == parts.first().unwrap().to_string() {
-                    letters = line.chars().last().unwrap().to_string();
+                if monograms == parts.first().unwrap().to_string() {
+                    monograms = line.chars().last().unwrap().to_string();
                 } else {
-                    letters += &line.chars().last().unwrap().to_string();
+                    monograms += &line.chars().last().unwrap().to_string();
                 }
             }
 
             if parts.len() == 2 || (parts.len() == 1 && line.chars().last().unwrap() == ' ') {
                 let weight = parts.first().unwrap();
                 let number = weight.parse::<f64>().unwrap();
-                data.push((letters, number))
+                data.push((monograms, number))
             }
         }
         data
@@ -225,7 +225,7 @@ impl NGrams {
         let mut reader = BufReader::new(f);
         let mut buf = vec![];
 
-        let mut letters: HashMap<String, f64> = HashMap::new();
+        let mut monograms: HashMap<String, f64> = HashMap::new();
         let mut bigrams: HashMap<String, f64> = HashMap::new();
         let mut trigrams: HashMap<String, f64> = HashMap::new();
 
@@ -246,26 +246,26 @@ impl NGrams {
 
             let chars = line.chars();
 
-            for letter in chars {
-                if letter != '⇧' {
-                    *letters.entry(letter.to_string()).or_insert(0.0) += 1.0;
+            for monogram in chars {
+                if monogram != '⇧' {
+                    *monograms.entry(monogram.to_string()).or_insert(0.0) += 1.0;
                 }
 
                 if let Some(bigram_char) = bigram_char {
                     *bigrams
-                        .entry(format!("{}{}", letter, bigram_char))
+                        .entry(format!("{}{}", monogram, bigram_char))
                         .or_insert(0.0) += 1.0;
 
                     if let Some(trigram_char) = trigram_char {
                         *trigrams
-                            .entry(format!("{}{}{}", letter, bigram_char, trigram_char))
+                            .entry(format!("{}{}{}", monogram, bigram_char, trigram_char))
                             .or_insert(0.0) += 1.0;
                     }
 
                     trigram_char = Some(bigram_char);
                 }
 
-                bigram_char = Some(letter.to_string());
+                bigram_char = Some(monogram.to_string());
             }
 
             buf.clear();
@@ -277,13 +277,13 @@ impl NGrams {
         trigrams_drained.sort_by(|a, b| a.1.partial_cmp(b.1).unwrap());
         trigrams_drained.reverse();
 
-        let mut letters_vec = vec![];
+        let mut monograms_vec = vec![];
 
-        for (letter, count) in letters.iter() {
-            letters_vec.push((letter.clone(), count.clone()))
+        for (monogram, count) in monograms.iter() {
+            monograms_vec.push((monogram.clone(), count.clone()))
         }
-        letters_vec.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
-        letters_vec.reverse();
+        monograms_vec.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        monograms_vec.reverse();
 
         let mut bigrams_vec = vec![];
         let bigrams_final_length = bigrams.len().saturating_sub(2);
@@ -309,7 +309,7 @@ impl NGrams {
 
         RawNGrams {
             weight,
-            letters: letters_vec,
+            monograms: monograms_vec,
             bigrams: bigrams_vec,
             trigrams: trigrams_vec,
         }
