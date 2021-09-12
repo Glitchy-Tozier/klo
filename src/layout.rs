@@ -12,9 +12,9 @@ use rand::{seq::SliceRandom, thread_rng};
 type Layer = String;
 type Key = Vec<Layer>;
 type Row = Vec<Key>;
-pub type Layout = Vec<Row>;
+pub type Blueprint = Vec<Row>;
 
-pub trait LayoutT {
+pub trait Layout {
     fn from_args(options: &KloOptions) -> Self;
     fn set_key(&mut self, row: usize, key: usize, layer: usize, new_key: String);
     fn get_base_layout(path: &Option<String>) -> Self;
@@ -25,7 +25,7 @@ pub trait LayoutT {
     fn get_key_pos(&mut self, needle: String) -> (usize, usize);
 }
 
-impl LayoutT for Layout {
+impl Layout for Blueprint {
     fn from_args(options: &KloOptions) -> Self {
         let mut layout = Self::get_base_layout(&options.base_layout);
         layout.debug_print();
@@ -54,15 +54,15 @@ impl LayoutT for Layout {
         serde_json::from_str(&json).unwrap()
     }
 
-    fn merge_layout_string(&mut self, layout: &str) {
-        let clean_lines = layout.replace(" ", "");
-        let lines = clean_lines.split('\n');
+    fn merge_layout_string(&mut self, layout_str: &str) {
+        let clean_layout_str = layout_str.replace(" ", "");
+        let lines = clean_layout_str.split('\n');
 
-        for (idx, line) in lines.enumerate() {
+        for (line_idx, line) in lines.enumerate() {
             let chars = line.chars();
 
-            for (idy, char) in chars.enumerate() {
-                self.set_key(idx + 1, idy + 1, 0, char.into());
+            for (char_idx, char) in chars.enumerate() {
+                self.set_key(line_idx + 1, char_idx + 1, 0, char.into());
             }
         }
     }
