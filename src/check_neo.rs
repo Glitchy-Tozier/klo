@@ -23,6 +23,6 @@ pub fn evolve_a_layout(options: &KloOptions) {
         debug!("Doing {} prerandomization switches.", options.prerandomize);
         let layout = Layout::from_args(&options);
         layout.debug_print();
-        //let new = layout.get_randomized_variant(options.alphabet.clone(), options.steps);
+        let new = layout.get_randomized_variant(options.alphabet.clone(), options.steps);
     }
 }

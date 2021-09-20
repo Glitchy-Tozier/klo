@@ -9,23 +9,71 @@ use log::{debug, warn};
 use crate::klo_options::KloOptions;
 use rand::{seq::SliceRandom, thread_rng};
 
-type Layer = String;
-type Key = Vec<Layer>;
-type Row = Vec<Key>;
-pub type Blueprint = Vec<Row>;
-
 /// Pos is how positions in the [Blueprint] are assigned. The values are ordered as follows:
 /// 1. Index of the [Row]
 /// 2. Index of the [Key], going from left to right
 /// 3. Index of the [Layer].
 type Pos = (u8,u8,u8);
 
+type Layer = String;
+type Key = Vec<Layer>;
+type Row = Vec<Key>;
+pub type Blueprint = Vec<Row>;
+
+trait Blueprint_Helpers {
+    fn debug_print(&self);
+    fn get_key_pos(&mut self, needle: String) -> (usize, usize);
+    fn set_new_key(&mut self, new_key: String, old_key: String);
+    fn set_key(&mut self, row: usize, key: usize, layer: usize, new_key: String);
+}
+impl Blueprint_Helpers for Blueprint {
+    fn debug_print(&self) {
+        for row in self {
+            let mut keys = "".to_string();
+            for key in row {
+                keys = keys + &key.first().unwrap_or(&" ".to_string());
+            }
+            debug!("{}", keys);
+        }
+    }
+
+    fn set_new_key(&mut self, new_key: String, old_key: String) {
+        let (row, key) = self.get_key_pos(old_key);
+        self.set_key(row, key, 0, new_key);
+    }
+
+    fn set_key(&mut self, row: usize, key: usize, layer: usize, new_key: String) {
+        self[row][key][layer] = new_key;
+    }
+
+
+    fn get_key_pos(&mut self, needle: String) -> (usize, usize) {
+        let mut row_index = 0;
+        let mut key_index = 0;
+
+        for (inr, row) in self.iter().enumerate() {
+            for (ink, key) in row.iter().enumerate() {
+                let default_key = "not_set".to_string();
+                let key = key.first().unwrap_or(&default_key);
+                if key == &needle {
+                    row_index = inr;
+                    key_index = ink;
+                }
+            }
+        }
+
+        debug!("Found key {} in {} x {}", needle, row_index, key_index);
+
+        (row_index, key_index)
+    }
+}
+
 pub struct Layout<'a> {
     blueprint: Blueprint,
-    char_finger_dict: HashMap<&'a String, &'a str>,
-    char_pos_dict: HashMap<&'a String, Pos>,
+    char_finger_dict: HashMap<String, &'a str>,
+    char_pos_dict: HashMap<String, Pos>,
     pos_is_left_dict: HashMap<Pos, bool>,
-    pos_char_dict: HashMap<Pos, &'a String>,
+    pos_char_dict: HashMap<Pos, String>,
 }
 
 impl<'a> Layout<'a> {
@@ -33,8 +81,8 @@ impl<'a> Layout<'a> {
     /// The "default constructor" for the [Layout]-struct.
     ///
     /// Input a (reference of a) [Blueprint] to let the function know what the layout should look like.
-    pub fn from_blueprint(blueprint: &Blueprint) -> Layout {
-        let RIGHT_HAND_LOWEST_INDEXES: [u8; 5] = [7, 6, 6, 7, 3];
+    pub fn from_blueprint<'b, 'c>(blueprint: &'b Blueprint) -> Layout<'c> {
+        const RIGHT_HAND_LOWEST_INDEXES: [u8; 5] = [7, 6, 6, 7, 3];
     
         // The positions which are by default accessed by the given finger. 
         let FINGER_POS_LIST:[(&str, Vec<(u8, u8, u8)>); 10] = [
@@ -56,43 +104,44 @@ impl<'a> Layout<'a> {
             }
         }
         
-        let mut char_finger_dict: HashMap<&String, &str> = HashMap::new();
-        let mut char_pos_dict: HashMap<&String, Pos> = HashMap::new();
+        let mut char_finger_dict: HashMap<String, &str> = HashMap::new();
+        let mut char_pos_dict: HashMap<String, Pos> = HashMap::new();
         let mut pos_is_left_dict: HashMap<Pos, bool> = HashMap::new();
-        let mut pos_char_dict: HashMap<Pos, &String> = HashMap::new();
+        let mut pos_char_dict: HashMap<Pos, String> = HashMap::new();
 
         for (row_idx, row) in blueprint.iter().enumerate() {
-
+            
             // Only used to fill up self._pos_is_left_dict:
             let lowest_right_hand_idx = RIGHT_HAND_LOWEST_INDEXES[row_idx];
             
+            
             for (key_idx , key) in row.iter().enumerate(){
                 for (layer_idx, char) in key.iter().enumerate(){
-
+                    
                     let pos: Pos = (row_idx as u8, key_idx as u8, layer_idx as u8);
-
+                    
                     let mut fill_char_dicts: bool = false;
                     if !char_finger_dict.contains_key(char){
                         fill_char_dicts = true;
                     } else if true{//_is_position_cost_lower(self._char_pos_dict[char], pos){
                         fill_char_dicts = true;
                     }
-
+                    
                     if fill_char_dicts{
                         // Fill up _char_finger_dict
-                        char_finger_dict.insert(char, match POS_TO_FINGER.get(&(pos.0, pos.1, 0)) {
+                        char_finger_dict.insert(char.to_owned(), match POS_TO_FINGER.get(&(pos.0, pos.1, 0)) {
                             Some(finger) => {finger},
                             None => {&""},
                         });
                         
                         // Fill up _char_pos_dict
-                        char_pos_dict.insert(char, pos);
+                        char_pos_dict.insert(char.to_owned(), pos);
                     }                        
                     // Fill up _pos_is_left_dict
                     pos_is_left_dict.insert(pos,  lowest_right_hand_idx > (key_idx as u8));
                     
                     // Fill up _pos_char_dict
-                    pos_char_dict.insert(pos,  &char);
+                    pos_char_dict.insert(pos,  char.to_owned());
                 }
             }
         }
@@ -110,12 +159,6 @@ impl<'a> Layout<'a> {
         layout.debug_print();
         layout.merge_layout_string(options.starting_layout.as_ref());
         layout
-    }
-
-    fn set_key(&mut self, row: usize, key: usize, layer: usize, new_key: String) -> Self{
-        let mut new_blueprint: Blueprint = self.blueprint.clone();
-        new_blueprint[row][key][layer]= new_key;
-        Layout::from_blueprint(&new_blueprint)
     }
 
     fn get_base_layout(path: &Option<String>) -> Layout {
@@ -136,31 +179,28 @@ impl<'a> Layout<'a> {
         Layout::from_blueprint(&blueprint)
     }
 
-    fn merge_layout_string(&mut self, layout_str: &str) {
+    fn merge_layout_string(&mut self, layout_str: &str) -> Layout {
         let clean_layout_str = layout_str.replace(" ", "");
         let lines = clean_layout_str.split('\n');
 
+        let mut blueprint = self.blueprint.clone();
         for (line_idx, line) in lines.enumerate() {
             let chars = line.chars();
 
             for (char_idx, char) in chars.enumerate() {
-                self.set_key(line_idx + 1, char_idx + 1, 0, char.into());
+                blueprint.set_key(line_idx + 1, char_idx + 1, 0, char.into());
             }
         }
+        Layout::from_blueprint(&blueprint)
     }
 
     pub fn debug_print(&self) {
-        for row in self.blueprint.clone() {
-            let mut keys = "".to_string();
-            for key in row {
-                keys = keys + &key.first().unwrap_or(&" ".to_string());
-            }
-            debug!("{}", keys);
-        }
+        self.blueprint.debug_print();
     }
 
-/*     fn get_randomized_variant(&self, alphabet: String, steps: u128) -> Self {
+    pub fn get_randomized_variant(&self, alphabet: String, steps: u128) -> Layout {
         debug!("Creating a new randomized variant with {} steps.", steps);
+        let mut blueprint = self.blueprint.clone();
 
         let mut old_alphabet = vec![];
         let mut new_alphabet = vec![];
@@ -172,39 +212,15 @@ impl<'a> Layout<'a> {
 
         for (idx, new_char) in new_alphabet.iter().enumerate() {
             let old_char = &old_alphabet[idx];
-            layout.set_new_key(old_char.clone(), new_char.clone());
+            blueprint.set_new_key(old_char.clone(), new_char.clone());
         }
+        let new_layout = Layout::from_blueprint(&blueprint);
 
         debug!("{:?}", old_alphabet);
         debug!("{:?}", new_alphabet);
         self.debug_print();
-        layout.debug_print();
+        new_layout.debug_print();
 
-        layout
-    } */
-
-    fn set_new_key(&mut self, new_key: String, old_key: String) -> Self {
-        let (row, key) = self.get_key_pos(old_key);
-        self.set_key(row, key, 0, new_key)
-    }
-
-    fn get_key_pos(&mut self, needle: String) -> (usize, usize) {
-        let mut row_index = 0;
-        let mut key_index = 0;
-
-        for (inr, row) in self.blueprint.iter().enumerate() {
-            for (ink, key) in row.iter().enumerate() {
-                let default_key = "not_set".to_string();
-                let key = key.first().unwrap_or(&default_key);
-                if key == &needle {
-                    row_index = inr;
-                    key_index = ink;
-                }
-            }
-        }
-
-        debug!("Found key {} in {} x {}", needle, row_index, key_index);
-
-        (row_index, key_index)
+        new_layout
     }
 }
