@@ -23,9 +23,10 @@ pub type Blueprint = Vec<Row>;
 trait Blueprint_Helpers {
     fn debug_print(&self);
     fn get_key_pos(&mut self, needle: String) -> (usize, usize);
-    fn set_new_key(&mut self, new_key: String, old_key: String);
+    fn replace_key(&mut self, new_key: String, old_key: String);
     fn set_key(&mut self, row: usize, key: usize, layer: usize, new_key: String);
 }
+
 impl Blueprint_Helpers for Blueprint {
     fn debug_print(&self) {
         for row in self {
@@ -37,7 +38,7 @@ impl Blueprint_Helpers for Blueprint {
         }
     }
 
-    fn set_new_key(&mut self, new_key: String, old_key: String) {
+    fn replace_key(&mut self, new_key: String, old_key: String) {
         let (row, key) = self.get_key_pos(old_key);
         self.set_key(row, key, 0, new_key);
     }
@@ -212,7 +213,7 @@ impl<'a> Layout<'a> {
 
         for (idx, new_char) in new_alphabet.iter().enumerate() {
             let old_char = &old_alphabet[idx];
-            blueprint.set_new_key(old_char.clone(), new_char.clone());
+            blueprint.replace_key(old_char.clone(), new_char.clone());
         }
         let new_layout = Layout::from_blueprint(&blueprint);
 
