@@ -13,7 +13,7 @@ use rand::{seq::SliceRandom, thread_rng};
 /// 1. Index of the [Row]
 /// 2. Index of the [Key], going from left to right
 /// 3. Index of the [Layer].
-type Pos = (u8,u8,u8);
+type Pos = (usize, usize, usize);
 
 /// A plan for how to construct a [Layout]-instance.
 pub type Blueprint = Vec<Row>;
@@ -101,10 +101,10 @@ impl<'a> Layout<'a> {
     ///
     /// Input a (reference of a) [Blueprint] to let the function know what the layout should look like.
     pub fn from_blueprint<'b, 'c>(blueprint: &'b Blueprint) -> Layout<'c> {
-        const RIGHT_HAND_LOWEST_INDEXES: [u8; 5] = [7, 6, 6, 7, 3];
+        const RIGHT_HAND_LOWEST_INDEXES: [usize; 5] = [7, 6, 6, 7, 3];
     
         // The positions which are by default accessed by the given finger. 
-        let FINGER_POS_LIST:[(&str, Vec<(u8, u8, u8)>); 10] = [
+        let FINGER_POS_LIST:[(&str, Vec<(usize, usize, usize)>); 10] = [
             ("Klein_L", vec![(0, 0, 0), (0, 1, 0), (0, 2, 0), (1, 0, 0), (1, 1, 0), (2, 0, 0), (2, 1, 0), (3, 0, 0), (3, 1, 0), (3, 2, 0), (4, 0, 0), (4, 1, 0)]), // Klein_L
             ("Ring_L", vec![(0, 3, 0), (1, 2, 0), (2, 2, 0), (3, 3, 0)]), // Ring_L
             ("Mittel_L", vec![(0, 4, 0), (1, 3, 0), (2, 3, 0), (3, 4, 0)]), // Mittel_L
@@ -116,7 +116,7 @@ impl<'a> Layout<'a> {
             ("Ring_R", vec![(0, 10, 0), (1, 9, 0), (2, 9, 0), (3, 10, 0)]), // Ring_R
             ("Klein_R", vec![(0, 11, 0), (0, 12, 0), (0, 13, 0), (1, 10, 0), (2, 10, 0), (3, 11, 0), (1, 11, 0), (2, 11, 0), (1, 12, 0), (2, 12, 0), (1, 13, 0), (2, 13, 0), (3, 12, 0), (4, 5, 0), (4, 6, 0), (4, 7, 0)]) // Klein_R
         ];
-        let mut POS_TO_FINGER:HashMap<&(u8, u8, u8), &str> = HashMap::new();
+        let mut POS_TO_FINGER:HashMap<&(usize, usize, usize), &str> = HashMap::new();
         for (finger, positions) in &FINGER_POS_LIST{
             for pos in positions{
                 POS_TO_FINGER.insert(pos, finger);
@@ -137,12 +137,13 @@ impl<'a> Layout<'a> {
             for (key_idx , key) in row.iter().enumerate(){
                 for (layer_idx, char) in key.iter().enumerate(){
                     
-                    let pos: Pos = (row_idx as u8, key_idx as u8, layer_idx as u8);
+                    let pos: Pos = (row_idx, key_idx, layer_idx);
                     
+                    // Check whether we even need to fill the HashMaps that take a character as a key.
                     let mut fill_char_dicts: bool = false;
                     if !char_finger_dict.contains_key(char){
                         fill_char_dicts = true;
-                    } else if true{//_is_position_cost_lower(self._char_pos_dict[char], pos){
+                    } else if Self::is_position_cost_lower(char_pos_dict[char], pos) {
                         fill_char_dicts = true;
                     }
                     
@@ -157,7 +158,7 @@ impl<'a> Layout<'a> {
                         char_pos_dict.insert(char.to_owned(), pos);
                     }                        
                     // Fill up _pos_is_left_dict
-                    pos_is_left_dict.insert(pos,  lowest_right_hand_idx > (key_idx as u8));
+                    pos_is_left_dict.insert(pos,  lowest_right_hand_idx > key_idx);
                     
                     // Fill up _pos_char_dict
                     pos_char_dict.insert(pos,  char.to_owned());
@@ -171,6 +172,40 @@ impl<'a> Layout<'a> {
             pos_is_left_dict: pos_is_left_dict,
             pos_char_dict: pos_char_dict,
         }
+    }
+
+    /// Compares two positions ([Pos]) and returns whether the new position is better than the old one.
+    fn is_position_cost_lower(old_pos: Pos, new_pos: Pos) -> bool{
+        // use tripled layer cost, because it ignores the additional bigrams.
+        const COST_LAYER_ADDITION: [u8; 6] = [0, 20, 9, 16, 29, 25];
+
+        let old_cost = Self::single_key_position_cost(old_pos) + 2 * COST_LAYER_ADDITION[old_pos.2];
+        let new_cost = Self::single_key_position_cost(new_pos) + COST_LAYER_ADDITION[new_pos.2];
+
+        new_cost < old_cost
+    }
+
+
+    /// Get the cost of typing a single position ([Pos]).
+    pub fn single_key_position_cost(pos: Pos) -> u8 {
+        const COST_LAYER_ADDITION: [u8; 6] = [0, 20, 9, 16, 29, 25];
+        let COST_PER_KEY: [Vec<u8>; 5] = [
+            // The 0 values aren’t filled in at the moment.
+            // Don’t put mutated keys there, otherwise the best keys will end up there!
+            vec![80,    70,60,50,50,60,    60,50,50,50,50,60,70, 80], // Zahlenreihe (0)
+            vec![24,    16,10, 5,12,17,    20,13, 5, 9,11,20,36,  0], // Reihe 1
+            vec![9,      5, 3, 3, 3, 6,     6, 3, 3, 3, 5, 9,30, 6], // Reihe 2; enter low to make it preferred over the layer 4 enter.
+            vec![20,16, 19,24,20,9,   30,  10, 8,22,22,17,       19],     // Reihe 3
+            vec![0,0,0,                3           , 7, 0, 0, 0] // Reihe 4 mit Leertaste
+        ];
+
+        // TODO: Check whether pos ever can be null (or "Option -> None")
+        // Arne has added at least two further checks but, so far, they seem unnecessary to me.
+        
+        /*if pos is None:  // not found
+        return COST_PER_KEY_NOT_FOUND*/
+
+        COST_PER_KEY[pos.0][pos.1] + COST_LAYER_ADDITION[pos.2]
     }
         
     pub fn from_args(options: &KloOptions) -> Layout {
