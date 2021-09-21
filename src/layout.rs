@@ -15,10 +15,11 @@ use rand::{seq::SliceRandom, thread_rng};
 /// 3. Index of the [Layer].
 type Pos = (u8,u8,u8);
 
-type Layer = String;
-type Key = Vec<Layer>;
-type Row = Vec<Key>;
+/// A plan for how to construct a [Layout]-instance.
 pub type Blueprint = Vec<Row>;
+type Row = Vec<Key>;
+type Key = Vec<Layer>;
+type Layer = String;
 
 trait Blueprint_Helpers {
     fn debug_print(&self);
@@ -69,16 +70,33 @@ impl Blueprint_Helpers for Blueprint {
     }
 }
 
+/// The Layout-struct, which will be used during optimization. It contains
+/// 1. the layout's [Blueprint] and
+/// 2. cashes of regularly used values.
+///
+/// Initialize a new layout-instance by calling
+/// ```
+/// Layout::from_blueprint(&blueprint);
+/// ```
+/// with a &[Blueprint] of your choosing.
 pub struct Layout<'a> {
+    /// The [Blueprint] of the layout.
     blueprint: Blueprint,
+
+    /// A [HashMap] that caches for each character which finger is used to click on it.
     char_finger_dict: HashMap<String, &'a str>,
+
+    /// A [HashMap] that caches for each character its corresponding position ([Pos]).
     char_pos_dict: HashMap<String, Pos>,
+
+    /// A [HashMap] that caches for each position ([Pos]) whether that position ([Pos]) is typed using the left hand.
     pos_is_left_dict: HashMap<Pos, bool>,
+
+    /// A [HashMap] that caches for each position ([Pos]) the corresponding character.
     pos_char_dict: HashMap<Pos, String>,
 }
 
 impl<'a> Layout<'a> {
-
     /// The "default constructor" for the [Layout]-struct.
     ///
     /// Input a (reference of a) [Blueprint] to let the function know what the layout should look like.
